@@ -292,7 +292,7 @@ ms_bmask(struct Client *client_p, struct Client *source_p, int parc, const char 
 		mems = ONLY_CHANOPS;
 		break;
 
-	case 'q':
+	case 'H':
 		banlist = &chptr->quietlist;
 		mode_type = CHFL_QUIET;
 		mems = ALL_MEMBERS;
