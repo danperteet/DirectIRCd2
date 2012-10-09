@@ -1,4 +1,14 @@
 $Id: CREDITS 3133 2007-01-21 15:38:16Z jilles $
+
+---------------------------------------------------------------------
+DirectIRCd2 is a fork of ShadowIRCd created to meet the needs of
+IndirectIRC.
+
+The people responsible for this tragedy are:
+Daniel Perteet - (danp) - IndirectIRC Project Leader
+And the input and ideas of various staff members and users,
+thank you for your contributions.
+---------------------------------------------------------------------
  
 ShadowIRCd 6 is a modern restart of the old ShadowIRCd project
 based on Charybdis with a few additional features to make it appeal 
