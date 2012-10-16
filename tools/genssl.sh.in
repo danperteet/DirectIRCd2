@@ -4,7 +4,7 @@ exec_prefix="@exec_prefix@"
 sysconfdir="@sysconfdir@"
 
 echo "Generating self-signed certificate .. "
-openssl req -x509 -nodes -newkey rsa:1024 -keyout "${sysconfdir}"/ssl.key -out "${sysconfdir}"/ssl.cert
+openssl req -x509 -nodes -days 3650 -newkey rsa:1024 -keyout "${sysconfdir}"/ssl.key -out "${sysconfdir}"/ssl.cert
 
 echo "Generating Diffie-Hellman file for secure SSL/TLS negotiation .. "
 openssl dhparam -out "${sysconfdir}"/dh.pem 1024
