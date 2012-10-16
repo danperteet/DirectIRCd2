@@ -15,7 +15,7 @@ static int
 _modinit(void)
 {
 	/* add the usermode to the available slot */
-	user_modes['m'] = find_umode_slot();
+	user_modes['i'] = find_umode_slot();
 	construct_umodebuf();
 
 	return 0;
@@ -25,7 +25,7 @@ static void
 _moddeinit(void)
 {
 	/* disable the umode and remove it from the available list */
-	user_modes['m'] = 0;
+	user_modes['i'] = 0;
 	construct_umodebuf();
 }
 
@@ -408,7 +408,7 @@ check_umode_change(void *vdata)
 	{
 		if (IsIPSpoof(source_p) || source_p->localClient->mangledhost == NULL || (IsDynSpoof(source_p) && strcmp(source_p->host, source_p->localClient->mangledhost)))
 		{
-			source_p->umodes &= ~user_modes['m'];
+			source_p->umodes &= ~user_modes['i'];
 			return;
 		}
 		if (strcmp(source_p->host, source_p->localClient->mangledhost))
@@ -420,7 +420,7 @@ check_umode_change(void *vdata)
 			sendto_one_numeric(source_p, RPL_HOSTHIDDEN, "%s :is now your hidden host",
 				source_p->host);
 	}
-	else if(!(source_p->umodes & user_modes['m']) && irccmp(source_p->orighost, source_p->host))
+	else if(!(source_p->umodes & user_modes['i']) && irccmp(source_p->orighost, source_p->host))
 	{
 		if (source_p->localClient->mangledhost != NULL &&
 				!strcmp(source_p->host, source_p->localClient->mangledhost))
