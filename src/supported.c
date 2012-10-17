@@ -230,7 +230,6 @@ isupport_chanmodes(const void *ptr)
 	rb_snprintf(result, sizeof result, "%s%sb%s,k,%sl%s,%s",
 			ConfigChannel.use_except ? "e" : "",
 			ConfigChannel.use_invex ? "I" : "",
-			strchr(ConfigChannel.disabledmodes, 'q') ? "" : "q",
 			ConfigChannel.use_forward ? "f" : "",
 			strchr(ConfigChannel.disabledmodes, 'j') ? "" : "j",
 			cflagsbuf);
@@ -260,9 +259,11 @@ isupport_prefix(const void *ptr)
 	static char result[11];
 
 	rb_snprintf(result, sizeof result, "(%so%sv)%s@%s+",
+			ConfigChannel.use_owner ? "q" : "",
 			ConfigChannel.use_admin ? "a" : "",
 			ConfigChannel.use_halfop ? "h" : "",
-			ConfigChannel.use_admin ? "!" : "",
+			ConfigChannel.use_owner ? "~" : "",
+			ConfigChannel.use_admin ? "&" : "",
 			ConfigChannel.use_halfop ? "%" : "");
 	return result;
 }
