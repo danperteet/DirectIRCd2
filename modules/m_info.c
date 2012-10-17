@@ -644,6 +644,12 @@ static struct InfoStruct info_table[] = {
 		"Enable chanmode +a (admin)",
 	},
 	{
+		"use_owner",
+		OUTPUT_BOOLEAN_YN,
+		&ConfigChannel.use_owner,
+		"Enable chanmode +q (owner)",
+	},
+	{
 		"use_except",
 		OUTPUT_BOOLEAN_YN,
 		&ConfigChannel.use_except,
