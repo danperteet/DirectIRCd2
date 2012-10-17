@@ -189,8 +189,15 @@ find_channel_status(struct membership *msptr, int combine)
 	if(is_admin(msptr))
 	{
 		if(!combine)
-			return "!";
-		*p++ = '!';
+			return "&";
+		*p++ = '&';
+	}
+	
+	if(is_owner(msptr))
+	{
+		if(!combine)
+			return "~";
+		*p++ = '~';
 	}
 
 	if(is_chanop(msptr))
@@ -252,6 +259,25 @@ is_admin(struct membership *msptr)
 		return 0;
 }
 
+/* is_owner()
+ *
+ * input    - membership to check for owner
+ * output   - 1 if the user is an admin, 0 if the user is not or owner
+ * is disabled.
+ * side effects - 
+ *
+ */
+int
+is_owner(struct membership *msptr)
+{
+	if(!ConfigChannel.use_owner)
+		return 0;
+	if(is_chmode_q(msptr))
+		return 1;
+	else
+		return 0;
+}
+
 /* is_any_op()
  *
  * input	- membership to check for ops
@@ -276,7 +302,7 @@ is_any_op(struct membership *msptr)
 int
 is_chanop_voiced(struct membership *msptr)
 {
-	if(is_chanop(msptr) || is_voiced(msptr) || is_halfop(msptr) || is_admin(msptr))
+	if(is_chanop(msptr) || is_voiced(msptr) || is_halfop(msptr) || is_admin(msptr) || is_owner(msptr))
 		return 1;
 	else
 		return 0;
@@ -293,9 +319,13 @@ can_kick_deop(struct membership *source, struct membership *target)
 {
 	if(is_chanop(source) && !is_admin(target))
 		return 1;
+	else if(is_chanop(source) && !is_owner(target))
+		return 1;
 	else if(is_halfop(source) && !is_any_op(target))
 		return 1;
 	else if(is_admin(source))
+		return 1;
+	else if(is_owner(source))
 		return 1;
 
 	return 0;
