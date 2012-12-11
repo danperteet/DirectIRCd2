@@ -90,12 +90,13 @@ construct_cflags_strings(void)
 		if( !(chmode_table[i].set_func == chm_ban) && 
 			!(chmode_table[i].set_func == chm_forward) &&
 			!(chmode_table[i].set_func == chm_throttle) &&
-                        !(chmode_table[i].set_func == chm_key) &&
-                        !(chmode_table[i].set_func == chm_limit) &&
+            !(chmode_table[i].set_func == chm_key) &&
+            !(chmode_table[i].set_func == chm_limit) &&
+			!(chmode_table[i].set_func == chm_owner) &&
 			!(chmode_table[i].set_func == chm_admin) &&
-                        !(chmode_table[i].set_func == chm_op) &&
+            !(chmode_table[i].set_func == chm_op) &&
 			!(chmode_table[i].set_func == chm_halfop) &&
-                        !(chmode_table[i].set_func == chm_voice))
+            !(chmode_table[i].set_func == chm_voice))
 		{
 			chmode_flags[i] = chmode_table[i].mode_type;
 		}
@@ -131,6 +132,7 @@ construct_cflags_strings(void)
 		/* Should we leave orphaned check here? -- dwr */
 		if( !(chmode_table[i].set_func == chm_nosuch) && 
 			!(chmode_table[i].set_func == chm_orphaned) && 
+			!(chmode_table[i].set_func == chm_owner && !ConfigChannel.use_owner) && 
 			!(chmode_table[i].set_func == chm_admin && !ConfigChannel.use_admin) && 
 			!(chmode_table[i].set_func == chm_halfop && !ConfigChannel.use_halfop))
 		{
@@ -148,6 +150,7 @@ construct_cflag_param_string(void)
 
 	*cflagsparaminfo = '\0';
 	rb_snprintf(cflagsparaminfo, sizeof cflagsparaminfo, "%sb%s%s%s%sklov%s%s",
+			ConfigChannel.use_owner ? "q" : "",
 			ConfigChannel.use_admin ? "a" : "",
 			ConfigChannel.use_except ? "e" : "",
 			ConfigChannel.use_forward ? "f" : "",
@@ -210,7 +213,9 @@ cflag_orphan(char c_)
 static int
 get_channel_access(struct Client *source_p, struct membership *msptr)
 {
-	if(!MyClient(source_p) || is_admin(msptr))
+	if(!MyClient(source_p) || is_owner(msptr))
+		return CHFL_OWNER;
+	else if(is_admin(msptr))
 		return CHFL_ADMIN;
 	else if(is_chanop(msptr))
 		return CHFL_CHANOP;
@@ -536,7 +541,7 @@ chm_simple(struct Client *source_p, struct Channel *chptr,
 	struct Metadata *md;
 	struct DictionaryIter iter;
 	
-	if(alevel != CHFL_CHANOP && alevel != CHFL_ADMIN && alevel != CHFL_HALFOP)
+	if(alevel != CHFL_CHANOP && alevel != CHFL_ADMIN && alevel !=CHFL_OWNER && alevel != CHFL_HALFOP)
 	{
 		if (IsOverride(source_p))
 			override = 1;
@@ -747,7 +752,7 @@ chm_staff(struct Client *source_p, struct Channel *chptr,
 		return;
 	}
 
-	if(alevel != CHFL_CHANOP && alevel != CHFL_ADMIN && alevel != CHFL_HALFOP)
+	if(alevel != CHFL_CHANOP && alevel != CHFL_ADMIN && alevel != CHFL_OWNER && alevel != CHFL_HALFOP)
 	{
 		if (IsOverride(source_p))
 			override = 1;
@@ -879,7 +884,7 @@ chm_ban(struct Client *source_p, struct Channel *chptr,
 		*errors |= errorval;
 
 		/* non-ops cant see +eI lists.. */
-		if(alevel != CHFL_CHANOP && alevel != CHFL_ADMIN && alevel != CHFL_HALFOP && mode_type != CHFL_BAN &&
+		if(alevel != CHFL_CHANOP && alevel != CHFL_ADMIN && alevel !-CHFL_OWNER && alevel != CHFL_HALFOP && mode_type != CHFL_BAN &&
 				mode_type != CHFL_QUIET)
 		{
 			if(IsOverride(source_p))
@@ -913,7 +918,7 @@ chm_ban(struct Client *source_p, struct Channel *chptr,
 		return;
 	}
 
-	if(alevel != CHFL_CHANOP && alevel != CHFL_ADMIN && alevel != CHFL_HALFOP)
+	if(alevel != CHFL_CHANOP && alevel != CHFL_ADMIN && alevel != CHFL_OWNER && alevel != CHFL_HALFOP)
 	{
 		if(IsOverride(source_p))
 			override = 1;
@@ -997,6 +1002,118 @@ chm_ban(struct Client *source_p, struct Channel *chptr,
 		mode_changes[mode_count].id = NULL;
 		mode_changes[mode_count].override = override;
 		mode_changes[mode_count++].arg = mask;
+	}
+}
+
+void
+chm_owner(struct Client *source_p, struct Channel *chptr,
+       int alevel, int parc, int *parn,
+       const char **parv, int *errors, int dir, char c, long mode_type)
+{
+	struct membership *mstptr;
+	const char *ownernick;
+	struct Client *targ_p;
+	int override = 0;
+
+	if(!ConfigChannel.use_owner)
+	{
+		if(*errors & SM_ERR_UNKNOWN)
+			return;
+		*errors |= SM_ERR_UNKNOWN;
+		sendto_one(source_p, form_str(ERR_UNKNOWNMODE), me.name, source_p->name, c);
+		return;
+	}
+
+	if(alevel != CHFL_OWNER)
+	{
+		if(IsOverride(source_p))
+			override = 1;
+		else
+		{
+
+			if(!(*errors & SM_ERR_NOOPS))
+				sendto_one(source_p, ":%s 482 %s %s :You're not a channel owner", me.name, source_p->name, chptr->chname);
+			*errors |= SM_ERR_NOOPS;
+			return;
+		}
+	}
+
+	if((dir == MODE_QUERY) || (parc <= *parn))
+		return;
+
+	ownernick = parv[(*parn)];
+	(*parn)++;
+
+	/* empty nick */
+	if(EmptyString(ownernick))
+	{
+		sendto_one_numeric(source_p, ERR_NOSUCHNICK, form_str(ERR_NOSUCHNICK), "*");
+		return;
+	}
+
+	if((targ_p = find_chasing(source_p, ownernick, NULL)) == NULL)
+	{
+		return;
+	}
+
+	mstptr = find_channel_membership(chptr, targ_p);
+
+	if(mstptr == NULL)
+	{
+		if(!(*errors & SM_ERR_NOTONCHANNEL) && MyClient(source_p))
+			sendto_one_numeric(source_p, ERR_USERNOTINCHANNEL,
+					   form_str(ERR_USERNOTINCHANNEL), ownernick, chptr->chname);
+		*errors |= SM_ERR_NOTONCHANNEL;
+		return;
+	}
+
+	if(MyClient(source_p) && (++mode_limit > MAXMODEPARAMS))
+		return;
+
+	if(dir == MODE_ADD)
+	{
+		if(targ_p == source_p)
+		{
+			no_override_deop = 1;
+			/* Don't reject modes from remote. It desyncs, and this is perfectly
+			 * legitimate from a remote override oper.
+			if(!override)
+				return;
+			*/
+		}
+
+		mode_changes[mode_count].letter = c;
+		mode_changes[mode_count].dir = MODE_ADD;
+		mode_changes[mode_count].caps = 0;
+		mode_changes[mode_count].nocaps = 0;
+		mode_changes[mode_count].mems = ALL_MEMBERS;
+		mode_changes[mode_count].id = targ_p->id;
+		mode_changes[mode_count].arg = targ_p->name;
+		mode_changes[mode_count].override = override;
+		mode_changes[mode_count++].client = targ_p;
+
+		mstptr->flags |= CHFL_OWNER;
+	}
+	else
+	{
+		if(MyClient(source_p) && IsService(targ_p))
+		{
+			sendto_one(source_p, form_str(ERR_ISCHANSERVICE),
+				   me.name, source_p->name, targ_p->name, chptr->chname);
+			return;
+		}
+
+		mode_changes[mode_count].letter = c;
+		mode_changes[mode_count].dir = MODE_DEL;
+		mode_changes[mode_count].caps = 0;
+		mode_changes[mode_count].nocaps = 0;
+		mode_changes[mode_count].mems = ALL_MEMBERS;
+		mode_changes[mode_count].id = targ_p->id;
+		mode_changes[mode_count].arg = targ_p->name;
+		mode_changes[mode_count].override = override;
+		mode_changes[mode_count++].client = targ_p;
+
+		mstptr->flags &= ~CHFL_OWNER;
 	}
 }
 
@@ -1426,7 +1543,7 @@ chm_limit(struct Client *source_p, struct Channel *chptr,
 	int limit;
 	int override = 0;
 
-	if(alevel != CHFL_CHANOP && alevel != CHFL_ADMIN && alevel != CHFL_HALFOP)
+	if(alevel != CHFL_CHANOP && alevel != CHFL_ADMIN && alevel != CHFL_OWNER && alevel != CHFL_HALFOP)
 	{
 		if(IsOverride(source_p))
 			override = 1;
@@ -1493,7 +1610,7 @@ chm_throttle(struct Client *source_p, struct Channel *chptr,
 	int joins = 0, timeslice = 0;
 	int override = 0;
 
-	if(alevel != CHFL_CHANOP && alevel != CHFL_ADMIN && alevel != CHFL_HALFOP)
+	if(alevel != CHFL_CHANOP && alevel != CHFL_ADMIN && alevel != CHFL_OWNER && alevel != CHFL_HALFOP)
 	{
 		if(IsOverride(source_p))
 			override = 1;
@@ -1585,7 +1702,7 @@ chm_forward(struct Client *source_p, struct Channel *chptr,
 	}
 
 #ifndef FORWARD_OPERONLY
-	if(alevel != CHFL_CHANOP && alevel != CHFL_ADMIN && alevel != CHFL_HALFOP)
+	if(alevel != CHFL_CHANOP && alevel != CHFL_ADMIN && alevel != CHFL_OWNER && alevel != CHFL_HALFOP)
 	{
 		if(IsOverride(source_p))
 			override = 1;
@@ -1690,7 +1807,7 @@ chm_key(struct Client *source_p, struct Channel *chptr,
 	char *key;
 	int override = 0;
 
-	if(alevel != CHFL_CHANOP && alevel != CHFL_ADMIN && alevel != CHFL_HALFOP)
+	if(alevel != CHFL_CHANOP && alevel != CHFL_ADMIN && alevel != CHFL_OWNER && alevel != CHFL_HALFOP)
 	{
 		if(IsOverride(source_p))
 			override = 1;
@@ -1845,7 +1962,7 @@ struct ChannelMode chmode_table[256] =
   {chm_simple,	MODE_NOKICK },		/* E */
   {chm_simple,	MODE_FREETARGET },	/* F */
   {chm_simple,	MODE_NOCAPS },		/* G */
-  {chm_nosuch,	0 },			/* H */
+  {chm_ban,	CHFL_QUIET },			/* H */
   {chm_ban,	CHFL_INVEX },           /* I */
   {chm_simple,	MODE_NOREJOIN },	/* J */
   {chm_simple,	MODE_NOREPEAT },	/* K */
@@ -1886,7 +2003,7 @@ struct ChannelMode chmode_table[256] =
   {chm_simple,	MODE_NOPRIVMSGS },	/* n */
   {chm_op,	0 },			/* o */
   {chm_simple,	MODE_PRIVATE },		/* p */
-  {chm_ban,	CHFL_QUIET },		/* q */
+  {chm_owner,	0 },		/* q */
   {chm_simple, MODE_REGONLY },		/* r */
   {chm_simple,	MODE_SECRET },		/* s */
   {chm_simple,	MODE_TOPICLIMIT },	/* t */

@@ -262,7 +262,7 @@ is_admin(struct membership *msptr)
 /* is_owner()
  *
  * input    - membership to check for owner
- * output   - 1 if the user is an admin, 0 if the user is not or owner
+ * output   - 1 if the user is an owner, 0 if the user is not or owner
  * is disabled.
  * side effects - 
  *
