@@ -884,7 +884,7 @@ chm_ban(struct Client *source_p, struct Channel *chptr,
 		*errors |= errorval;
 
 		/* non-ops cant see +eI lists.. */
-		if(alevel != CHFL_CHANOP && alevel != CHFL_ADMIN && alevel !-CHFL_OWNER && alevel != CHFL_HALFOP && mode_type != CHFL_BAN &&
+		if(alevel != CHFL_CHANOP && alevel != CHFL_ADMIN && alevel != CHFL_OWNER && alevel != CHFL_HALFOP && mode_type != CHFL_BAN &&
 				mode_type != CHFL_QUIET)
 		{
 			if(IsOverride(source_p))
