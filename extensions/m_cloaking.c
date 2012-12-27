@@ -401,10 +401,10 @@ check_umode_change(void *vdata)
 		return;
 
 	/* didn't change +h umode, we don't need to do anything */
-	if(!((data->oldumodes ^ source_p->umodes) & user_modes['m']))
+	if(!((data->oldumodes ^ source_p->umodes) & user_modes['i']))
 		return;
 
-	if((source_p->umodes & user_modes['m']) && !irccmp(source_p->orighost, source_p->host))
+	if((source_p->umodes & user_modes['i']) && !irccmp(source_p->orighost, source_p->host))
 	{
 		if (IsIPSpoof(source_p) || source_p->localClient->mangledhost == NULL || (IsDynSpoof(source_p) && strcmp(source_p->host, source_p->localClient->mangledhost)))
 		{
@@ -438,13 +438,13 @@ check_new_user(void *vdata)
 
 	if (IsIPSpoof(source_p))
 	{
-		source_p->umodes &= ~user_modes['m'];
+		source_p->umodes &= ~user_modes['i'];
 		return;
 	}
 	source_p->localClient->mangledhost = rb_strdup(genHostMask(source_p->orighost));
 	if (IsDynSpoof(source_p))
-		source_p->umodes &= ~user_modes['m'];
-	if (source_p->umodes & user_modes['m'])
+		source_p->umodes &= ~user_modes['i'];
+	if (source_p->umodes & user_modes['i'])
 	{
 		rb_strlcpy(source_p->host, source_p->localClient->mangledhost, HOSTLEN);
 		if (irccmp(source_p->host, source_p->orighost))
