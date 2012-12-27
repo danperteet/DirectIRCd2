@@ -737,7 +737,7 @@ stats_operedup (struct Client *source_p)
 		count++;
 
 		sendto_one_numeric(source_p, RPL_STATSDEBUG,
-				   "p :%s (%s@%s)",
+				   "p :%s (%s@%s) Idle: %ld",
 				   target_p->name, target_p->username, 
 				   target_p->host);
 	}
